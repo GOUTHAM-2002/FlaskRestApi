@@ -1,5 +1,34 @@
-from flask import Flask,url_for,request,json,Response
+from flask import Flask,url_for,request,json,Response,jsonify
+from functools import wraps
 app=Flask(__name__)
+
+def check_auth(username,password):
+    return username=="admin" and password=="pass"
+
+def authenticate():
+    message = {'message':"Authenticte."}
+    resp = jsonify(message)
+    resp.status_code=401
+    resp.headers["WWW-Authenticate"] = "basic realm=Example"
+
+    return resp
+
+def requires_auth(f):
+    @wraps(f)
+    def decorated(*args,**kwargs):
+        auth = request.authorization
+        if not auth:
+            return authenticate()
+        elif not check_auth(auth.username,auth.password):
+            return authenticate()
+        return f(*args,**kwargs)
+
+    return decorated
+
+@app.route('/secrets')
+@requires_auth
+def api_hello():
+    return "Shhh this is top secret spy stuff!"
 
 
 @app.route("/messages",methods=["POST"])
@@ -56,4 +85,4 @@ def api_echo():
         return "ECHO: DELETE"
 
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)
